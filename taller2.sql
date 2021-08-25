@@ -45,30 +45,34 @@ INSERT INTO personas(rut, nombre)
 			AND rca IS NOT NULL;
 
 /*Rellena Vendedores*/
-
 INSERT INTO vendedores(nombre)
-	SELECT DISTINCT vend FROM Traspaso WHERE vend IS NOT NULL;
-
-SELECT DISTINCT Traspaso.vend, vendedores.nombre, vendedores.id_vendedor INTO temporal FROM vendedores
-	INNER JOIN Traspaso ON vendedores.nombre = Traspaso.supv;
-
-/*Aqui Borro la tabla que cree para relacionar los vendedores con (el id de) sus respectivos supervisores */
-UPDATE vendedores
-SET id_supervisor = t.id_vendedor FROM temporal t
-WHERE vendedores.nombre = t.vend;
-
-DELETE FROM temporal WHERE vend IS NOT NULL;
-DROP TABLE temporal;
-
+	SELECT DISTINCT vend FROM Traspaso WHERE vend IS NOT NULL AND supv IS NULL;
+	
+INSERT INTO vendedores(nombre, id_supervisor) 
+	SELECT DISTINCT vend, vendedores.id_vendedor FROM Traspaso 
+		INNER JOIN vendedores ON Traspaso.supv = vendedores.nombre
+	WHERE vend IS NOT NULL
+	
 /*Relleno Propiedades*/
 
-:c
+INSERT INTO propiedades (tipo_propiedad, provincia, superficie, superficieconstruida, dueno)
+	SELECT tipos_propiedades.id_tipo, provincias.id_provincia, super, constr, rd FROM Traspaso
+		INNER JOIN tipos_propiedades ON UPPER(Traspaso.tpr) = tipos_propiedades.tipo_propiedad
+		INNER JOIN provincias ON UPPER(Traspaso.prov) = provincias.provincia
 
 /*Rellena Operaciones*/
+
 INSERT INTO operaciones(id_propiedad, fechaalta, tipo_operacion, precio, fechaoperacion, 
 						vendedor, comprador) 
-	SELECT propiedades.id_propiedad, TO_DATE(fa,'dd/mm/yy'), tipos_operaciones.id_tipooperacion, pv, TO_DATE(fv,'dd/mm/yy'), rd, rca, constr, super FROM Traspaso
-		INNER JOIN propiedades ON propiedades.dueno = Traspaso.rd 
-		INNER JOIN tipos_operaciones ON tipos_operaciones.tipo_operacion = UPPER(Traspaso.top)
-
-		
+SELECT propiedades.id_propiedad, TO_DATE(fa,'dd/mm/yy'),tipos_operaciones.id_tipooperacion, pv, 
+		TO_DATE(fv,'dd/mm/yy'), rd, rca FROM Traspaso
+	INNER JOIN propiedades ON (
+		(SELECT id_provincia FROM provincias WHERE UPPER(Traspaso.prov) = provincia) = propiedades.provincia AND
+		Traspaso.rd = propiedades.dueno	AND
+		Traspaso.super = propiedades.superficie AND
+		(SELECT id_tipo FROM tipos_propiedades WHERE UPPER(Traspaso.tpr) = tipo_propiedad) = propiedades.tipo_propiedad
+		)
+	INNER JOIN tipos_operaciones ON UPPER(Traspaso.top) = tipos_operaciones.tipo_operacion
+	
+	
+	
