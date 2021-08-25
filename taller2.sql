@@ -52,6 +52,7 @@ INSERT INTO vendedores(nombre)
 SELECT DISTINCT Traspaso.vend, vendedores.nombre, vendedores.id_vendedor INTO temporal FROM vendedores
 	INNER JOIN Traspaso ON vendedores.nombre = Traspaso.supv;
 
+/*Aqui Borro la tabla que cree para relacionar los vendedores con (el id de) sus respectivos supervisores */
 UPDATE vendedores
 SET id_supervisor = t.id_vendedor FROM temporal t
 WHERE vendedores.nombre = t.vend;
@@ -59,18 +60,15 @@ WHERE vendedores.nombre = t.vend;
 DELETE FROM temporal WHERE vend IS NOT NULL;
 DROP TABLE temporal;
 
-select * from propiedades
-
 /*Relleno Propiedades*/
 
-/*Rellena aquellas no vendidas hasta la fecha*/
-INSERT INTO propiedades (tipo_propiedad, provincia, superficie, superficieconstruida, dueno)
-	SELECT tipos_propiedades.id_tipo, provincias.id_provincia, super, constr, rd FROM Traspaso
-		INNER JOIN tipos_propiedades ON tipos_propiedades.tipo_propiedad = UPPER(Traspaso.tpr)
-		INNER JOIN provincias ON provincias.provincia = UPPER(Traspaso.prov)
-	WHERE rca IS NULL
-	
-/*Rellena aquellas ya vendidas*/
+:c
 
-/*Rellena Propiedades*/
+/*Rellena Operaciones*/
+INSERT INTO operaciones(id_propiedad, fechaalta, tipo_operacion, precio, fechaoperacion, 
+						vendedor, comprador) 
+	SELECT propiedades.id_propiedad, TO_DATE(fa,'dd/mm/yy'), tipos_operaciones.id_tipooperacion, pv, TO_DATE(fv,'dd/mm/yy'), rd, rca, constr, super FROM Traspaso
+		INNER JOIN propiedades ON propiedades.dueno = Traspaso.rd 
+		INNER JOIN tipos_operaciones ON tipos_operaciones.tipo_operacion = UPPER(Traspaso.top)
 
+		
