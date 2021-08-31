@@ -1,15 +1,17 @@
-SELECT CONCAT('Hoy es ', TO_CHAR(now(), 'DD/MM/YYYY') )
+SELECT CONCAT('Hoy es ', TO_CHAR(now(), 'DD/MM/YYYY') );
 
-SELECT operaciones.* FROM operaciones
+SELECT operaciones.*, provincias.provincia FROM operaciones
+INNER JOIN provincias ON provincias.id_provincia = (
+	SELECT provincia FROM propiedades WHERE id_propiedad = operaciones.id_propiedad)
 WHERE (vendedor = (SELECT id_vendedor FROM vendedores WHERE UPPER(nombre) = UPPER('Luisa')) AND
 	   tipo_operacion = (SELECT id_tipooperacion FROM tipos_operaciones WHERE UPPER(tipo_operacion) = UPPER('Venta')))
-ORDER BY (fechaoperacion)
+ORDER BY (provincias.provincia, fechaoperacion);
 
 SELECT CONCAT('El/La vendedor/a ', v.nombre, ' es supervisado/a por ', 
 			  (CASE
 			 	WHEN (s.nombre IS NULL) THEN 'Nadie'
 			 	ELSE s.nombre END) ) FROM vendedores v
-LEFT JOIN vendedores s ON v.id_supervisor = s.id_vendedor
+LEFT JOIN vendedores s ON v.id_supervisor = s.id_vendedor;
 
 
 SELECT CONCAT(vendedores.nombre, ' deberá recibir ',
@@ -21,4 +23,4 @@ SELECT CONCAT(vendedores.nombre, ' deberá recibir ',
 			  	' del día ', TO_CHAR(fechaoperacion, 'DD/MM/YYYY')) FROM operaciones 
 INNER JOIN vendedores ON operaciones.vendedor = vendedores.id_vendedor
 WHERE fechaoperacion BETWEEN '01/01/2001' AND '01/01/2021'
-ORDER BY id_propiedad
+ORDER BY id_propiedad;
