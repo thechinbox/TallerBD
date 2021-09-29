@@ -1,4 +1,4 @@
-/*/*Tipo Pro para las id de las propiedades */
+/*Tipo Pro para las id de las propiedades */
 CREATE TYPE pro AS (
 	idprop INTEGER 
 );
@@ -6,7 +6,7 @@ CREATE TYPE pro AS (
 CREATE TYPE ganancias AS (
 	vendedor varchar,
 	ganancias integer
-);*/
+);
 
 /*Funcion para obtener las propiedades disponibles con los parametros correspondientes*/
 CREATE OR REPLACE FUNCTION PropiedadesDisponibles(tpp varchar(50), tpo varchar(50), prov varchar(50),
@@ -34,8 +34,7 @@ CREATE OR REPLACE FUNCTION PropiedadesDisponibles(tpp varchar(50), tpo varchar(5
 		(SELECT op.id_propiedad, prop.tipo_propiedad, tipo_operacion, prop.provincia, prop.superficieconstruida, 
 		 	prop.superficie, precio FROM operaciones op
 		 INNER JOIN propiedades prop ON (op.id_propiedad = prop.id_propiedad AND prop.superficie >= param1)
-		 WHERE fechaoperacion IS NULL AND precio <= param2
-		 ORDER BY op.precio);
+		 WHERE (fechaoperacion IS NULL AND precio <= param2) );
 		LOOP
 			FETCH NEXT FROM crsPro INTO pro;
 				EXIT WHEN NOT FOUND;
@@ -45,8 +44,8 @@ CREATE OR REPLACE FUNCTION PropiedadesDisponibles(tpp varchar(50), tpo varchar(5
 				ELSEIF( tpo IS NOT NULL AND NOT(UPPER(tpo) = (SELECT UPPER(tipo_operacion) FROM tipos_operaciones
 												   WHERE id_tipooperacion = pro.tipo_operacion)))THEN
 					val := false;
-				ELSEIF( pro IS NOT NULL AND NOT(UPPER(prov) = (SELECT UPPER(provincia) FROM provincias
-												   WHERE id_provincia = pro.provincia)))THEN
+				ELSEIF(prov IS NOT NULL AND NOT(UPPER(prov) = (SELECT UPPER(provincia) FROM provincias pv
+												   WHERE pv.id_provincia = pro.provincia)))THEN
 					val := false;
 				ELSEIF(cst IS NOT NULL AND NOT(pro.superficieconstruida >= cst))THEN
 					val := false;
@@ -54,9 +53,11 @@ CREATE OR REPLACE FUNCTION PropiedadesDisponibles(tpp varchar(50), tpo varchar(5
 				IF(val = true)THEN
 					idpro.idprop := pro.id_propiedad;
 					RETURN NEXT idpro;
-				END IF;		
+				END IF;	
+				val:= true;
 		END LOOP;
 	END
+
 $$ LANGUAGE plpgsql;
 
 /*Funcion para obtener la comision a pagar a un vendedor/supervisor en un periodo de fechas correspondiente */
@@ -136,11 +137,9 @@ CREATE OR REPLACE FUNCTION ComisionesAPagar(fechai varchar(10), fechaf varchar(1
 $$ LANGUAGE plpgsql;
 
 /*Select para obtener las propiedades*/
-SELECT PropiedadesDisponibles('Tipo Propiedad','Tipo Operacion','Provincia',
-							  'superficieconstruida (quitar comillas)','superficie (quitar comillas)','precio (quitar comillas)');
-							  
+SELECT PropiedadesDisponibles('Tipo propiedad', 'Tipo operacion','Provincia',
+							  construido, superficie, precio);
 
-/*Select para obtener la comision a recibir por parte de los trabajadores */
+/*Select para obtener la comision a recibir por parte de los trabajadores*/
 SELECT ComisionesAPagar('Fecha Inicial en Formato dd-mm-aaaa','Fecha Final en Formato dd-mm-aaaa');
 
-	 
