@@ -1,4 +1,4 @@
-/*Tipo Pro para las id de las propiedades */
+/*/*Tipo Pro para las id de las propiedades */
 CREATE TYPE pro AS (
 	idprop INTEGER 
 );
@@ -6,7 +6,7 @@ CREATE TYPE pro AS (
 CREATE TYPE ganancias AS (
 	vendedor varchar,
 	ganancias integer
-);
+);*/
 
 /*Funcion para obtener las propiedades disponibles con los parametros correspondientes*/
 CREATE OR REPLACE FUNCTION PropiedadesDisponibles(tpp varchar(50), tpo varchar(50), prov varchar(50),
@@ -62,6 +62,7 @@ $$ LANGUAGE plpgsql;
 /*Funcion para obtener la comision a pagar a un vendedor/supervisor en un periodo de fechas correspondiente */
 CREATE OR REPLACE FUNCTION ComisionesAPagar(fechai varchar(10), fechaf varchar(10)) RETURNS SETOF ganancias AS $$
 	DECLARE
+		crsf REFCURSOR;
 		crsS REFCURSOR;
 		crsV REFCURSOR;
 		aux RECORD;
@@ -70,10 +71,12 @@ CREATE OR REPLACE FUNCTION ComisionesAPagar(fechai varchar(10), fechaf varchar(1
 		suma INTEGER;
 	BEGIN 
 		IF (fechai IS NULL OR NOT(fechai ~ '^(([0-2][1-9]|3[0-1])-([0-9][1-9]|1[1-2])-(19[0-9]{2}|20([0-1][0-9]|2[0-1])))$')) THEN
-			fechai := '05-04-2004';
+			OPEN crsf FOR (SELECT TO_CHAR(fechaoperacion, 'dd-mm-yyyy') FROM operaciones ORDER BY fechaoperacion ASC);
+			fechai := null;
+			FETCH FIRST FROM crsf INTO fechai;
 		END IF;
 		IF (fechaf IS NULL OR NOT(fechaf ~ '^(([0-2][1-9]|3[0-1])-([0-9][1-9]|1[1-2])-(19[0-9]{2}|20([0-1][0-9]|2[0-1])))$')) THEN
-			fechaf := '07-05-2007';
+			fechaf := TO_CHAR(now(), 'dd-mm-yyyy');
 		END IF;
 		OPEN crsV SCROLL FOR 
 			(SELECT vns.nombre as vendn, sup.nombre as supn, 
@@ -87,17 +90,19 @@ CREATE OR REPLACE FUNCTION ComisionesAPagar(fechai varchar(10), fechaf varchar(1
         		END) as sumas FROM operaciones op
 	 		INNER JOIN vendedores vns ON op.vendedor = vns.id_vendedor
 	 		INNER JOIN vendedores sup ON sup.id_vendedor = (SELECT id_supervisor FROM vendedores WHERE id_vendedor = op.vendedor)
-	 		WHERE op.fechaoperacion BETWEEN TO_DATE('04-04-2004', 'DD-MM-YYYY') AND TO_DATE('07-05-2007', 'DD-MM-YYYY')
+	 		WHERE op.fechaoperacion BETWEEN TO_DATE(fechai, 'DD-MM-YYYY') AND TO_DATE(fechaf, 'DD-MM-YYYY')
 			GROUP BY vns.nombre, sup.nombre);
 	 
 		OPEN crsS FOR 
 			(SELECT sup.nombre,
 				SUM (CASE
-                	WHEN op.tipo_operacion = (SELECT id_tipooperacion FROM tipos_operaciones top WHERE UPPER(top.tipo_operacion) = 'ALQUILER') THEN precio*0.06
-                	ELSE precio*0.09
+                	WHEN op.tipo_operacion = (SELECT id_tipooperacion FROM tipos_operaciones top WHERE UPPER(top.tipo_operacion) = 'ALQUILER') THEN precio * 0.09
+                	ELSE precio*0.06
    				END) FROM operaciones op
-	 		INNER JOIN vendedores sup ON sup.id_vendedor = (SELECT id_supervisor FROM vendedores WHERE id_vendedor = op.vendedor)
-	 		GROUP BY sup.nombre);
+			INNER JOIN vendedores sup ON (op.vendedor = sup.id_vendedor AND 
+										(SELECT id_supervisor FROM vendedores WHERE id_vendedor = sup.id_vendedor  ) IS NULL)
+	 		WHERE op.fechaoperacion BETWEEN TO_DATE(fechai, 'DD-MM-YYYY') AND TO_DATE(fechaf, 'DD-MM-YYYY')
+			GROUP BY sup.nombre);
 	 
 		LOOP
 			FETCH NEXT FROM crsV INTO aux;
@@ -130,12 +135,12 @@ CREATE OR REPLACE FUNCTION ComisionesAPagar(fechai varchar(10), fechaf varchar(1
 	END
 $$ LANGUAGE plpgsql;
 
-/*Select para obtener las propiedades */
+/*Select para obtener las propiedades*/
 SELECT PropiedadesDisponibles('Tipo Propiedad','Tipo Operacion','Provincia',
 							  'superficieconstruida (quitar comillas)','superficie (quitar comillas)','precio (quitar comillas)');
+							  
 
 /*Select para obtener la comision a recibir por parte de los trabajadores */
-SELECT ComisionesAPagar('Fecha Inicial Formato dia-mes-año','Fecha Final Formato dia-mes-año');
+SELECT ComisionesAPagar('Fecha Inicial en Formato dd-mm-aaaa','Fecha Final en Formato dd-mm-aaaa');
 
-	 
 	 
