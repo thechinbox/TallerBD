@@ -48,7 +48,7 @@ CREATE OR REPLACE FUNCTION PropiedadesDisponibles(tpp varchar(50), tpo varchar(5
 					val := false;
 				ELSEIF(trr IS NOT NULL AND NOT(pro.sup >= trr))THEN
 					val := false;
-				ELSEIF(pre IS NOT NULL AND NOT(pro.price <= cst))THEN
+				ELSEIF(pre IS NOT NULL AND NOT(pro.price <= pre))THEN
 					val := false;
 				END IF;
 				IF(val = true)THEN
