@@ -15,8 +15,6 @@ CREATE TYPE ganancias AS (
 	ganancias integer
 );
 
-
-
 /*Funcion para obtener las propiedades disponibles con los parametros correspondientes*/
 CREATE OR REPLACE FUNCTION PropiedadesDisponibles(tpp varchar(50), tpo varchar(50), prov varchar(50),
 									 cst integer, trr integer, pre integer ) RETURNS SETOF busqueda AS $$
@@ -44,7 +42,7 @@ CREATE OR REPLACE FUNCTION PropiedadesDisponibles(tpp varchar(50), tpo varchar(5
 					val := false;
 				ELSEIF(prov IS NOT NULL AND NOT(UPPER(prov) = pro.prv))THEN
 					val := false;
-				ELSEIF(cst IS NOT NULL AND NOT(pro.supcons >= cst))THEN
+				ELSEIF(cst IS NOT NULL AND (pro.supcons IS NOT NULL AND NOT(pro.supcons >= cst)))THEN
 					val := false;
 				ELSEIF(trr IS NOT NULL AND NOT(pro.sup >= trr))THEN
 					val := false;
