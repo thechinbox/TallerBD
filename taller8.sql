@@ -57,7 +57,7 @@ $$ LANGUAGE plpgsql;
 
 /*Triggers Punto 3*/
 CREATE TRIGGER tr_opVA BEFORE INSERT OR UPDATE ON propiedades
-      FOR EACH ROW EXECUTE PROCEDURE  tr_pronopr(7) ;
+      FOR EACH ROW EXECUTE PROCEDURE  tr_valsup() ;
 	  
 CREATE OR REPLACE FUNCTION tr_valsup() RETURNS TRIGGER AS $$
 	BEGIN
