@@ -77,12 +77,11 @@ CREATE OR REPLACE FUNCTION tr_valsup() RETURNS TRIGGER AS $$
 	prov varchar;
 	tipopr varchar;
 	BEGIN
-		prov = (SELECT provincia FROM provincias WHERE id_provincia = NEW.provincia);
-		tipopr = (SELECT tipo_propiedad FROM tipos_propiedades WHERE id_tipo = NEW.tipo_propiedad);
-		
+		prov = (SELECT UPPER(provincia) FROM provincias WHERE id_provincia = NEW.provincia);
+		tipopr = (SELECT UPPER(tipo_propiedad) FROM tipos_propiedades WHERE id_tipo = NEW.tipo_propiedad);
+
 		IF (prov = 'LLEIDA' AND tipopr ='PARKING' AND NEW.superficie < 100) THEN
 			RAISE EXCEPTION 'Superficie Menor a 100';
-			
 		ELSEIF (prov = 'TARAGONA' AND tipopr = 'CASA' AND NEW.superficieconstruida > 3 * NEW.superficie) THEN
 				RAISE EXCEPTION 'Superficie Construida Supera el Limite Establecido';
 				
@@ -95,6 +94,8 @@ CREATE OR REPLACE FUNCTION tr_valsup() RETURNS TRIGGER AS $$
 		ELSEIF (tipopr = 'INDUSTRIAL' AND NEW.superficie < 500) THEN
 			RAISE EXCEPTION 'Superficie Menor a 500';
 		END IF;
+		
+		RETURN (NEW);
 	END
 $$ LANGUAGE plpgsql;
 
