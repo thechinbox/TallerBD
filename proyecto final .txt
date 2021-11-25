@@ -1,0 +1,387 @@
+CREATE TABLE copia(
+	placa varchar(7),
+	codigo_ver_placa varchar(1),
+	fecha_emision varchar(10),
+	ano_permiso varchar(4),
+	pago_fisico varchar(15),
+	cuota_permiso varchar(15),
+	codigo_sii varchar(11),
+	comuna_propietario varchar(20),
+	comuna_permiso varchar(20),
+	valor_contado varchar(10),
+	total_a_pagar varchar(10),
+	ano_fabricacion varchar(4),
+	tipo_vehiculo varchar(25),
+	marca varchar(20),
+	modelo varchar(40),
+	cilindrada varchar(5),
+	equipamiento varchar(7),
+	combustible varchar(8),
+	transmision varchar(4),
+	tonelaje varchar(10),
+	cod_comuna varchar(5),
+	comuna_anterior varchar(20),
+	comuna_rev varchar(20),
+	fecha_vencimiento varchar(30)
+);
+
+CREATE TABLE patentes(
+	letras varchar(2),
+	valor varchar(3)
+);
+
+COPY copia FROM 'C:\Users\motoc\Desktop\permisos.csv' CSV DELIMITER ',' HEADER ENCODING 'Latin1';
+COPY patentes FROM 'F:\trabajo final taller bd\ValoresPatentes.csv' CSV DELIMITER ';' HEADER ENCODING 'Latin1'
+
+-----------arreglar fecha y limpieza de datos-------------
+
+UPDATE copia set fecha_emision = '2021-06-18' where fecha_emision = '18-06-2021';
+
+delete from copia where upper(combustible) in ('MEC','FULL','AUT');
+
+
+-------------Creacion tablas--------
+
+
+create table marcas (
+id_marca int not null generated always as identity,
+marca varchar(20) not null,
+constraint pk_marcas primary key (id_marca),
+constraint uq_marcas unique (marca)
+);
+
+create table modelos (
+id_modelo int not null generated always as identity,
+modelo varchar(40) not null,
+marca int not null,
+constraint uq_modelo unique (modelo),
+constraint pk_modelos primary key (id_modelo),
+constraint fk_marca_idMarca foreign key (marca)
+	                      references marcas(id_marca)
+);
+
+create table combustibles(
+id_combustible int not null generated always as identity,
+combustible varchar(8) not null,
+constraint pk_combustible primary key (id_combustible),
+constraint uq_combustible unique (combustible)
+);
+
+create table pagos(
+id_pago int not null generated always as identity,
+pago varchar(15) not null,
+constraint pk_pagos primary key (id_pago),
+constraint uq_pagos unique (pago)
+);
+
+create table cuotas(
+id_cuota int not null generated always as identity,
+cuota varchar(15) not null,
+constraint pk_cuotas primary key (id_cuota),
+constraint uq_cuotas unique (cuota)
+);
+
+create table comunas(
+id_comuna int not null generated always as identity,
+comuna varchar(20) not null,
+constraint pk_comuna primary key (id_comuna),
+constraint uq_comuna unique (comuna)
+);
+
+create table transmisiones(
+id_transmision int not null generated always as identity,
+transmision varchar(4),
+constraint pk_idTransmision primary key (id_transmision),
+constraint uq_transmision unique (transmision)
+);
+
+create table vehiculos(
+placa varchar(7) not null,
+cod_placa varchar(1) not null,
+marca int not null,
+modelo int not null,
+cilindrada varchar(5),
+equipamiento varchar(7),
+combustible int not null,
+transmision int, 
+tonelaje varchar(10) not null,
+constraint pk_vehiculos primary key (placa),
+constraint fk_marca_idMarca foreign key (marca)
+	                      references marcas(id_marca),
+constraint fk_modelo_idModelo foreign key (modelo)
+	                      references modelos(id_modelo),
+constraint fk_combustible_idCombustible foreign key (combustible)
+	                      references combustibles(id_combustible),
+constraint fk_trasmision_idtransmision foreign key (transmision)
+	                      references transmisiones(id_transmision)
+);
+
+create table permisos(
+id_permiso int not null generated always as identity,
+placa varchar(7) not null,
+fecha_emision date not null,
+tipo_pago int not null,
+cuota int not null,
+codigo_sii varchar(11) not null,
+comuna_propietario int not null,
+comuna_permiso int not null,
+valor_contado int not null,
+valor_total int not null,
+comuna_anterior int not null,
+fecha_vence date not null,
+constraint pk_permisos primary key (id_permiso),
+constraint fk_pago_idpago foreign key (tipo_pago)
+	             references pagos(id_pago),
+constraint fk_comunaPropietario_idComuna foreign key (comuna_propietario)
+	                      references comunas(id_comuna),
+constraint fk_comunaPermiso_idComuna foreign key (comuna_permiso)
+	                      references comunas(id_comuna),
+constraint fk_comunaAnterior_idComuna foreign key (comuna_anterior)
+	                      references comunas(id_comuna)
+
+);
+
+
+
+--------tabla temporal para comunas------------
+create table temporal (
+	comuna varchar(20)
+);
+	
+insert into temporal(comuna)
+	select  distinct upper(comuna_propietario)from copia;
+
+insert into temporal(comuna)
+	select  distinct upper(comuna_permiso)from copia;
+
+insert into temporal(comuna)
+	select  distinct upper(comuna_anterior)from copia;
+
+
+-----------------Tabla para auditoria de Permisos-----------------------------------------
+CREATE TABLE audt_permisos(
+	fecha DATE,
+	cambios varchar(200)
+);
+
+------------------Insert Datos-------------------------------------------------------------
+
+
+insert into marcas(marca) 
+	select distinct upper(marca) from copia;
+	
+insert into modelos(modelo, marca) 
+	select distinct on (upper(modelo))  modelo, marcas.id_marca from copia
+	inner Join marcas on copia.marca =  marcas.marca
+	where modelo is not null;
+	
+insert into combustibles(combustible) 
+	select distinct upper(combustible) from copia;
+	
+insert into comunas(comuna) 
+	select distinct upper(comuna) from temporal;
+
+insert into transmisiones(transmision) 
+	select distinct upper(transmision) from copia; 
+	
+insert into cuotas(cuota) 
+	select distinct upper(cuota_permiso) from copia; 
+	
+insert into pagos(pago) 
+	select distinct upper(pago_fisico) from copia; 
+
+insert into vehiculos(placa,cod_placa,marca,modelo,cilindrada,equipamiento,combustible,transmision,tonelaje) 
+	select distinct on (upper(placa)) placa, codigo_ver_placa, marcas.id_marca,
+	modelos.id_modelo, cilindrada, equipamiento, combustibles.id_combustible,
+	transmisiones.id_transmision, tonelaje from copia
+	inner join marcas on upper(copia.marca) = upper(marcas.marca)
+	inner join modelos on upper(copia.modelo) = upper(modelos.modelo)
+	inner join combustibles on upper(copia.combustible) = upper(combustibles.combustible)
+	inner join transmisiones on upper(copia.transmision) = upper(transmisiones.transmision); 
+
+
+insert into permisos(placa,fecha_emision,tipo_pago,cuota,codigo_sii,comuna_propietario,
+					 comuna_permiso,valor_contado,valor_total,comuna_anterior,fecha_vence)
+			select placa, TO_DATE(fecha_emision,'yyyy-mm-dd'), pagos.id_pago,cuotas.id_cuota,
+			codigo_sii,c1.id_comuna,c2.id_comuna,cast(valor_contado as integer),cast(total_a_pagar as integer),
+			c3.id_comuna, TO_DATE(substring(fecha_vencimiento,1,10),'yyyy-mm-dd') from copia 
+			inner join pagos on upper(copia.pago_fisico) = upper(pagos.pago)
+			inner join cuotas on upper(copia.cuota_permiso) = upper(cuotas.cuota)
+			inner join comunas c1 on upper(copia.comuna_propietario) = upper(c1.comuna)
+			inner join comunas c2 on upper(copia.comuna_permiso) = upper(c2.comuna)
+			inner join comunas c3 on upper(copia.comuna_anterior) = upper(c3.comuna);
+
+-------------------------- TRIGGERS Y PA-------------------------------------------------------------------------------
+
+/*Funcion para Patentes Antiguas-Autos */
+CREATE OR REPLACE FUNCTION DVPATENTE_AA(patente varchar) RETURNS char as $$
+	DECLARE
+		valorL varchar(3);
+		dv char;
+		cont integer;
+		suma integer;
+		ri integer;
+		rf integer;
+	BEGIN
+		valorL := (SELECT valor FROM patentes WHERE letras = SUBSTRING(patente,1,2) );
+		cont := 0;
+		suma := 0;
+		WHILE(cont < 4) LOOP
+			suma := suma + ((cont + 2) * (SUBSTRING(patente,(6-cont),1)::int));
+			cont := cont + 1;
+		END LOOP;
+		cont := 0;
+		WHILE(cont < 2) LOOP
+			suma := suma + ((6+cont) * (SUBSTRING(valorL,(3-cont),1))::int);
+			cont := cont + 1;
+		END LOOP;
+		
+		suma := suma + (2 * (SUBSTRING(valorL,1,1)::int));
+		
+		ri := (suma % 11)::int;
+		rf := 11-ri;
+		
+		IF ( rf = 11 ) THEN
+			dv := '0';
+		ELSEIF ( rf = 10 ) THEN
+			dv := 'K';
+		ElSE
+			dv := rf::char;
+		END IF;
+		
+		RETURN(dv);
+	END
+$$ LANGUAGE plpgsql;
+
+/*Funcion para Patentes Nuevas-Autos*/
+CREATE OR REPLACE FUNCTION DVPATENTE_NA(patente varchar) RETURNS char as $$
+	DECLARE
+		dv char;
+		cont integer;
+		suma integer;
+	BEGIN
+		cont := 0;
+		suma := 0;
+		WHILE (cont < 4) LOOP
+			suma := suma + (7 - cont) * (SELECT valor FROM patentes WHERE letras = SUBSTRING(patente,(1 + cont),1))::int;
+			cont := cont + 1;
+		END LOOP;
+		suma := suma + 3 *  (SUBSTRING(patente,5,1))::int;
+		suma := suma + 2 *  (SUBSTRING(patente,6,1))::int;
+		suma := (suma % 11);
+		
+		IF ( suma = 0 ) THEN
+			dv := '0';
+		ElSE
+			suma := 11 - suma ;
+			IF(suma = 10) THEN
+				dv := 'K';
+			ELSE 
+				dv := suma::char;
+			END IF;
+		END IF;
+		
+		RETURN(dv);
+	END
+	
+$$ LANGUAGE plpgsql;
+
+/*Funcion para Patentes Nuevas/Antiguas-Motos*/
+CREATE OR REPLACE FUNCTION DVPATENTE_NAM(patente varchar) RETURNS char as $$
+	DECLARE
+		dv char;
+		cont integer;
+		suma integer;
+	BEGIN
+		cont := 0;
+		suma := 0;
+		WHILE (cont < 3) LOOP
+			suma := suma + (7 - cont) * (SELECT valor FROM patentes WHERE letras = SUBSTRING(patente,(1 + cont),1))::int;
+			cont := cont + 1;
+		END LOOP;
+		cont := 0;
+		WHILE (cont < 3) LOOP
+			suma := suma + (4 - cont) * (SUBSTRING(patente,(4 + cont),1))::int;
+			cont := cont + 1;
+		END LOOP;
+		suma := (suma % 11);
+		
+		IF ( suma = 0 ) THEN
+			dv := '0';
+		ElSE
+			suma := 11 - suma ;
+			IF(suma = 10) THEN
+				dv := 'K';
+			ELSE 
+				dv := suma::char;
+			END IF;
+		END IF;
+		RETURN(dv);
+	END
+$$ LANGUAGE plpgsql;
+
+/*Funcion Principal*/
+CREATE OR REPLACE FUNCTION DVPATENTE() RETURNS TRIGGER as $$
+	DECLARE patente_pars varchar;
+	DECLARE placa_dv varchar;
+	DECLARE dv char;
+	BEGIN
+		patente_pars := SPLIT_PART(NEW::varchar, ',', 1);
+		patente_pars := SUBSTRING(patente_pars,2,7);
+		placa_dv := SPLIT_PART(NEW::varchar, ',', 2);
+		IF ( UPPER(patente_pars) ~* '^[A-Z]{4}-[0-9]{2}$') THEN
+			patente_pars := CONCAT(SUBSTRING(patente_pars,1,4),SUBSTRING(patente_pars,6,2));
+			dv := DVPATENTE_NA(UPPER(patente_pars));
+		
+		ELSEIF ( UPPER(patente_pars) ~* '^[A-Z]{2}-[0-9]{4}$') THEN
+			patente_pars := CONCAT(SUBSTRING(patente_pars,1,2),SUBSTRING(patente_pars,4,4));
+			dv := DVPATENTE_AA(UPPER(patente_pars));
+			
+		ELSEIF ( UPPER(patente_pars) ~* '^[A-Z]{3}-[0-9]{3}$') THEN
+			patente_pars := CONCAT(SUBSTRING(patente_pars,1,3),SUBSTRING(patente_pars,5,3));
+			dv := DVPATENTE_NAM(UPPER(patente_pars));
+			
+		ELSE
+			RAISE EXCEPTION 'PATENTE CON FORMATO ERRONEO';
+		END IF;
+		
+		IF (dv != placa_dv::char) THEN
+			RAISE EXCEPTION 'EL CODIGO DE VERIFICACION DE LA PLACA ES ERRONEO';
+		END IF;
+		
+		RETURN(NEW);
+		
+	END
+$$ LANGUAGE plpgsql;
+
+/*Trigger Para verificacion de la patente del permiso*/
+CREATE TRIGGER tr_veh BEFORE INSERT ON vehiculos
+      FOR EACH ROW EXECUTE PROCEDURE  DVPATENTE() ;
+	
+/*Funcion para Auditoria de Permisos*/
+CREATE OR REPLACE FUNCTION AUD() RETURNS TRIGGER as $$	
+	DECLARE
+		cambios varchar;
+		i integer;
+		cols varchar;
+	BEGIN
+		i:= 1;
+		cambios:='';
+		cols := 'id_permiso,placa,fecha_emision,tipo_pago,cuota,codigo_sii,comuna_propietario, comuna_permiso,valor_contado,valor_total,comuna_anterior,fecha_vence';
+		WHILE(i <= 12)LOOP
+			IF(cambios = '' AND (SPLIT_PART(NEW::varchar, ',', i) != SPLIT_PART(OLD::varchar, ',', i)))THEN
+				cambios:= CONCAT(cambios , SPLIT_PART(cols, ',', i) , ': ' , SPLIT_PART(NEW::varchar, ',', i));
+			ELSEIF (SPLIT_PART(NEW::varchar, ',',i) != SPLIT_PART(OLD::varchar, ',', i))THEN 
+				cambios:=CONCAT(cambios , ';' , SPLIT_PART(cols, ',', i), ': ' , SPLIT_PART(NEW::varchar, ',', i));
+			END IF;
+			i:= i + 1;
+		END LOOP;
+		INSERT INTO audt_permisos(fecha,cambios) VALUES (TO_DATE(NOW()::VARCHAR,'YYYY/MM/DD'), cambios);
+		RETURN(NULL);
+	
+	END
+$$ LANGUAGE plpgsql;
+
+/*Trigger para auditoria de permisos*/
+CREATE TRIGGER tr_audpago AFTER UPDATE ON permisos
+	FOR EACH ROW EXECUTE PROCEDURE  AUD();
